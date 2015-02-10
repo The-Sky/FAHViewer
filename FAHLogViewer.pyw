@@ -2,44 +2,70 @@
 # -*- coding: utf-8 -*-
 
 from Tkinter import *
+import tkFont
 import ttk
 from ttk import Frame, Button, Label, Style
 import datetime, time, threading, sys, ttk, re
-global mpb, area, lastupdated, mGui, tlabel, v, y
+global progress_bar, log_field, lastupdated, mGui, last_updated, v, z
+import getpass
+
+user = getpass.getuser()
+old = time.time()
+
+def find_seconds_from_run():
+    now = time.time()
+    float_seconds_from = now - old
+    seconds_from = str(int(round(float(float_seconds_from))))
+    v.set(str(seconds_from + " seconds ago"))
+    mGui.after(1000, find_seconds_from_run)
+
+def find_minutes_per_percentage():
+    latest_time = re.sub(':', '', get_latest_time())
+    second_latest_time = re.sub(':', '', get_second_latest_time())
+
+    time_difference = int(latest_time) - int(second_latest_time)
+
+    mmp = str(round(float(time_difference)/60, 2))
+    z.set(str(mmp + " minutes"))
+    mGui.after(10000, find_minutes_per_percentage)
 
 # Function to Manually Refresh the Log and Progress Bar
 def refresh():
-    area.delete(1.0, END)
+    log_field.delete(1.0, END)
 
     get_last_log_lines()
 
     # Find the latest percentage from Log
     latest_percentage = get_latest_percentage()
     if latest_percentage:
-        mpb["value"] = latest_percentage
+        progress_bar["value"] = latest_percentage
     else:
         raise Exception("Unable to find latest percentage.")
 
-    # y.set(str(mpb["value"]) + "%")
-    now = time.strftime("%I:%M:%S")
-    v.set(str("Last Updated: " + now))
+    # y.set(str(progress_bar["value"]) + "%")
+    # now = time.strftime("%I:%M:%S")
+    # v.set(str("Last Updated: " + now))
 
 # Function to Automatically Refresh the Log and Progress Bar 
 def refresh_timer():
-    area.delete(1.0, END)
+    log_field.delete(1.0, END)
     
     get_last_log_lines()
 
     # Find the latest percentage from Log
     latest_percentage = get_latest_percentage()
     if latest_percentage:
-        mpb["value"] = latest_percentage
+        progress_bar["value"] = latest_percentage
     else:
         raise Exception("Unable to find latest percentage.")
 
-    now = time.strftime("%I:%M:%S")
-    v.set(str("Last Updated: " + now))
-    # y.set(str(mpb["value"]) + "%")
+    global old
+    old = time.time()
+    find_seconds_from_run()
+
+    # now = time.strftime("%I:%M:%S")
+    # v.set(str("Last Updated: " + now))
+    # y.set(str(progress_bar["value"]) + "%")
     mGui.after(10000, refresh_timer)
 
 def quit():
@@ -47,89 +73,114 @@ def quit():
 
 def get_last_log_lines():
     i = 0
-    f = open('C:\ProgramData\FAHClient\log.txt', 'r+')
+    f = open("C:\Users\\" + user +"\AppData\Roaming\FAHClient\log.txt", 'r+')
     for line in reversed(f.readlines()):
         regex = re.compile("(Completed \d+ out of \d+ steps \(\d+%\))")
         r = regex.search(line)
         if r:
             i = i + 1
             if i == 1:
-                area.insert(INSERT, r.group(1))
+                log_field.insert(INSERT, r.group(1))
 
 
+def get_latest_time():
+    i = 0
+    f = open("C:\Users\\" + user +"\AppData\Roaming\FAHClient\log.txt", 'r+')
+    for line in reversed(f.readlines()):
+        regex = re.compile("(\d+:\d+:\d+):.*?:.*?:.*?:Completed \d+ out of \d+ steps \((\d+)%\)")
+        r = regex.search(line)
+        if r:
+            i = i + 1
+            if i == 1:
+                return r.group(1)
+
+def get_second_latest_time():
+    i = 0
+    f = open("C:\Users\\" + user +"\AppData\Roaming\FAHClient\log.txt", 'r+')
+    for line in reversed(f.readlines()):
+        regex = re.compile("(\d+:\d+:\d+):.*?:.*?:.*?:Completed \d+ out of \d+ steps \((\d+)%\)")
+        r = regex.search(line)
+        if r:
+            i = i + 1
+            if i == 2:
+                return r.group(1)
 
 # Function to find the latest percentage from the last matching line in the log
 def get_latest_percentage():
     i = 0
-    f = open('C:\ProgramData\FAHClient\log.txt', 'r+')
+    f = open("C:\Users\\" + user +"\AppData\Roaming\FAHClient\log.txt", 'r+')
     for line in reversed(f.readlines()):
         regex = re.compile("Completed \d+ out of \d+ steps \((\d+)%\)")
         r = regex.search(line)
         if i == 0:
             if r != None:
                 i = i + 1
-                newvalue = r.group(1)
-                return newvalue
+                return r.group(1)
 
 mGui = Tk()
 
 # Create the Window
-mGui.geometry('360x70')
+mGui.geometry('360x80')
 mGui.title('F@H Percentage Viewer')
 mGui.wm_iconbitmap('C:\Program Files (x86)\FAHClient\FAHClient.ico')
 mGui.wm_attributes("-topmost", 1)
 mGui.resizable(width=FALSE, height=FALSE)
-mGui.columnconfigure(1, weight=1)
-mGui.columnconfigure(3, pad=7)
-mGui.rowconfigure(3, weight=1)
-mGui.rowconfigure(5, pad=7)
-
 
 # Create the Text Field
-area = Text(mGui, height=1)
-area.grid(row=1, column=0, columnspan=2, rowspan=4, 
-    padx=5, sticky=E+W+N)
-area.pack()
+log_field = Text(mGui, height=1)
+log_field.place(x=0, y=0)
 
 # Insert the Log into the Text Field
 get_last_log_lines()
 
 # Make the Progress Bar
-mpb = ttk.Progressbar(mGui,orient="horizontal",length = 360, mode ="determinate")
-mpb.grid(row=3, column=2, ipady=10)
-mpb.pack()
-mpb["maximum"] = 100
+progress_bar = ttk.Progressbar(mGui,orient="horizontal",length = 360, mode ="determinate")
+progress_bar.place(x=0, y=20)
+progress_bar["maximum"] = 100
 
 # Find the latest percentage from Log
 latest_percentage = get_latest_percentage()
 if latest_percentage:
-    mpb["value"] = latest_percentage
+    progress_bar["value"] = latest_percentage
 else:
-    mpb["value"] = 0
+    progress_bar["value"] = 0
+
+# Create 1% Pre Bold
+update = StringVar()
+last = Label(mGui, textvariable=update)
+last.place(x=11,y=40)
+last.config(font=('system', 2, 'bold'))
+update.set(str("Last Updated:"))
 
 # Find the last time the log/progress bar was refreshed.
-now = time.strftime("%I:%M:%S")
-
 v = StringVar()
-tlabel = Label(mGui, textvariable=v)
-tlabel.grid(row=2, column=1, sticky=W)
-tlabel.pack(side=LEFT)
-v.set(str("Last Updated: " + now))
-
-# y = StringVar()
-# dlabel = Label(mpb, textvariable=y)
-# dlabel.place()
-# y.set(str(mpb["value"]) + "%")
-
-# Create the Quit button
-qbutton = Button(mGui, text="Quit", command=quit)
-qbutton.grid(row=2, column=4)
-qbutton.pack(side=RIGHT)
+last_updated = Label(mGui, textvariable=v)
+last_updated.place(x=110,y=41)
+v.set(str("0 seconds ago"))
 
 # Create the Refresh button
-button = Button(mGui, text="Refresh", command=refresh)
-button.grid(row=2, column=3)
-button.pack(side=RIGHT)
+refresh_button = Button(mGui, text="Refresh", command=refresh)
+refresh_button.place(x=200, y=55)
 
-mGui.after(10000, refresh_timer)
+# Create the Quit button
+quit_button = Button(mGui, text="Quit", command=quit)
+quit_button.place(x=280, y=55)
+
+# Create 1% Pre Bold
+per = StringVar()
+oneper = Label(mGui, textvariable=per)
+oneper.place(x=0, y=58)
+oneper.config(font=('system', 2, 'bold'))
+per.set(str("1 Percent Each:"))
+
+# Create Minutes per Percentage Field
+z = StringVar()
+minutes_per_percentage = Label(mGui, textvariable=z)
+minutes_per_percentage.place(x=110, y=60)
+z.set(str("0 minutes"))
+
+mGui.after(1, refresh_timer)
+mGui.after(1, find_seconds_from_run)
+mGui.after(1, find_minutes_per_percentage)
 mGui.mainloop()
+
